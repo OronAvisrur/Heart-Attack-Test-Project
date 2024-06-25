@@ -29,7 +29,10 @@ type Message struct {
 	DataMap     map[string]any
 }
 
+// This function send mail using SMTP
 func (mail_obj *Mail) SendSMTPMessage(msg Message) error {
+
+	// Fix empty important empty info if needed
 	if msg.From == "" {
 		msg.From = mail_obj.FromAddress
 	}
@@ -38,22 +41,27 @@ func (mail_obj *Mail) SendSMTPMessage(msg Message) error {
 		msg.FromName = mail_obj.FromName
 	}
 
+	// Create map of the data
 	data := map[string]any{
 		"message": msg.Data,
 	}
 
+	// Add the data to the message DataMap
 	msg.DataMap = data
 
+	// Build HTML message format
 	formattedMessage, possible_error := mail_obj.buildHTMLMessage(msg)
 	if possible_error != nil {
 		return possible_error
 	}
 
+	// Build plain text message format
 	plainMessage, possible_error := mail_obj.buildPlainTextMessage(msg)
 	if possible_error != nil {
 		return possible_error
 	}
 
+	// Set up the SMTP client
 	server := mail.NewSMTPClient()
 	server.Host = mail_obj.Host
 	server.Port = mail_obj.Port
@@ -64,11 +72,13 @@ func (mail_obj *Mail) SendSMTPMessage(msg Message) error {
 	server.ConnectTimeout = 10 * time.Second
 	server.SendTimeout = 10 * time.Second
 
+	// Connect to the client
 	smtpClient, possible_error := server.Connect()
 	if possible_error != nil {
 		return possible_error
 	}
 
+	// Send the message
 	email := mail.NewMSG()
 	email.SetFrom(msg.From).
 		AddTo(msg.To).
@@ -83,6 +93,7 @@ func (mail_obj *Mail) SendSMTPMessage(msg Message) error {
 		}
 	}
 
+	// Check for error
 	possible_error = email.Send(smtpClient)
 	if possible_error != nil {
 		return possible_error
@@ -92,41 +103,44 @@ func (mail_obj *Mail) SendSMTPMessage(msg Message) error {
 
 }
 
+// This function convert Message struct object to HTML
 func (mail_obj *Mail) buildHTMLMessage(msg Message) (string, error) {
+	// Get the premade templates
 	templateToRender := "./templates/mail.html.gohtml"
 
-	t, err := template.New("email-html").ParseFiles(templateToRender)
-	if err != nil {
-		return "", err
+	t, possible_error := template.New("email-html").ParseFiles(templateToRender)
+	if possible_error != nil {
+		return "", possible_error
 	}
 
 	var tpl bytes.Buffer
 
-	if err = t.ExecuteTemplate(&tpl, "body", msg.DataMap); err != nil {
-		return "", err
+	if possible_error = t.ExecuteTemplate(&tpl, "body", msg.DataMap); possible_error != nil {
+		return "", possible_error
 	}
 
 	formattedMessage := tpl.String()
-	formattedMessage, err = mail_obj.inlineCSS(formattedMessage)
-	if err != nil {
-		return "", err
+	formattedMessage, possible_error = mail_obj.inlineCSS(formattedMessage)
+	if possible_error != nil {
+		return "", possible_error
 	}
 
 	return formattedMessage, nil
 }
 
+// This function convert Message struct object to plain text
 func (mail_obj *Mail) buildPlainTextMessage(msg Message) (string, error) {
 	templateToRender := "./templates/mail.plain.gohtml"
 
-	t, err := template.New("email-plain").ParseFiles(templateToRender)
-	if err != nil {
-		return "", err
+	t, possible_error := template.New("email-plain").ParseFiles(templateToRender)
+	if possible_error != nil {
+		return "", possible_error
 	}
 
 	var tpl bytes.Buffer
 
-	if err = t.ExecuteTemplate(&tpl, "body", msg.DataMap); err != nil {
-		return "", err
+	if possible_error = t.ExecuteTemplate(&tpl, "body", msg.DataMap); possible_error != nil {
+		return "", possible_error
 	}
 
 	plainMessage := tpl.String()
@@ -141,14 +155,14 @@ func (mail_obj *Mail) inlineCSS(s string) (string, error) {
 		KeepBangImportant: true,
 	}
 
-	prem, err := premailer.NewPremailerFromString(s, &options)
-	if err != nil {
-		return "", err
+	prem, possible_error := premailer.NewPremailerFromString(s, &options)
+	if possible_error != nil {
+		return "", possible_error
 	}
 
-	html, err := prem.Transform()
-	if err != nil {
-		return "", err
+	html, possible_error := prem.Transform()
+	if possible_error != nil {
+		return "", possible_error
 	}
 
 	return html, nil

@@ -54,15 +54,18 @@ func (app *Config) Broker(write http.ResponseWriter, read *http.Request) {
 	_ = app.writeJSON(write, http.StatusOK, payload)
 }
 
+// Handling the frontend submission
 func (app *Config) HandleSubmission(write http.ResponseWriter, read *http.Request) {
 	var request_payload RequestPayload
 
+	// Writing the json as RequestPayload and search for errors
 	possible_error := app.readJSON(write, read, &request_payload)
 	if possible_error != nil {
 		app.errorJSON(write, possible_error)
 		return
 	}
 
+	// Run the correct service to call
 	switch request_payload.Action {
 	case "auth":
 		app.authenticate(write, request_payload.Auth)
@@ -75,17 +78,19 @@ func (app *Config) HandleSubmission(write http.ResponseWriter, read *http.Reques
 	}
 }
 
+// This function try to authenticate the given credentials
 func (app *Config) authenticate(write http.ResponseWriter, authentic AuthPayload) {
-	//create some json we'll send to the auth microservice
+	// Create some json we'll send to the authenticate microservice
 	jsonData, _ := json.MarshalIndent(authentic, "", "\t")
 
-	//call the service
+	// Call the service
 	request, possible_error := http.NewRequest("POST", "http://authentication/authenticate", bytes.NewBuffer(jsonData))
 	if possible_error != nil {
 		app.errorJSON(write, possible_error)
 		return
 	}
 
+	// Creating new client and try to send the request to the service
 	client := &http.Client{}
 	response, possible_error := client.Do(request)
 	if possible_error != nil {
@@ -94,7 +99,7 @@ func (app *Config) authenticate(write http.ResponseWriter, authentic AuthPayload
 	}
 	defer response.Body.Close()
 
-	//make sure we get back the correct status code
+	// Make sure we get back the correct status code
 	if response.StatusCode == http.StatusUnauthorized {
 		app.errorJSON(write, errors.New("invalid credentials"))
 		return
@@ -103,10 +108,10 @@ func (app *Config) authenticate(write http.ResponseWriter, authentic AuthPayload
 		return
 	}
 
-	//create a varible we'll read response.Body into
+	// Create a varible we'll read response.Body into
 	var jsonFromService jsonResponse
 
-	//decode the json from the auth service
+	// Decode the json from the auth service
 	possible_error = json.NewDecoder(response.Body).Decode(&jsonFromService)
 	if possible_error != nil {
 		app.errorJSON(write, possible_error)
@@ -118,6 +123,7 @@ func (app *Config) authenticate(write http.ResponseWriter, authentic AuthPayload
 		return
 	}
 
+	// Sending response back to frontend
 	var payload jsonResponse
 	payload.Error = false
 	payload.Message = "Authenticated!"
@@ -129,10 +135,10 @@ func (app *Config) authenticate(write http.ResponseWriter, authentic AuthPayload
 func (app *Config) sendMail(write http.ResponseWriter, msg MailPayload) {
 	jsonData, _ := json.MarshalIndent(msg, "", "\t")
 
-	//call the mail service
+	// Call the mail service
 	mailServiceURL := "http://mailer/send"
 
-	//post to mail service
+	// Post to mail service
 	request, possible_error := http.NewRequest("POST", mailServiceURL, bytes.NewBuffer(jsonData))
 	if possible_error != nil {
 		app.errorJSON(write, possible_error)
@@ -141,6 +147,7 @@ func (app *Config) sendMail(write http.ResponseWriter, msg MailPayload) {
 
 	request.Header.Set("Content-Type", "application/json")
 
+	// Creating new client and try to send the request to the service
 	client := &http.Client{}
 	response, possible_error := client.Do(request)
 	if possible_error != nil {
@@ -149,13 +156,13 @@ func (app *Config) sendMail(write http.ResponseWriter, msg MailPayload) {
 	}
 	defer response.Body.Close()
 
-	//make sure we get back the right status code
+	// Make sure we get back the right status code
 	if response.StatusCode != http.StatusAccepted {
 		app.errorJSON(write, errors.New("error calling mail service"))
 		return
 	}
 
-	//send back json
+	// Send back json
 	var payload jsonResponse
 	payload.Error = false
 	payload.Message = "Message sent to " + msg.To
@@ -164,16 +171,17 @@ func (app *Config) sendMail(write http.ResponseWriter, msg MailPayload) {
 }
 
 func (app *Config) calculateKNN(write http.ResponseWriter, authentic KnnPayload) {
-	//create some json we'll send to the auth microservice
+	// Create some json we'll send to the knn microservice
 	jsonData, _ := json.MarshalIndent(authentic, "", "\t")
 
-	//call the service
+	// Call the service
 	request, possible_error := http.NewRequest("POST", "http://knn/knn", bytes.NewBuffer(jsonData))
 	if possible_error != nil {
 		app.errorJSON(write, possible_error)
 		return
 	}
 
+	// Creating new client and try to send the request to the service
 	client := &http.Client{}
 	response, possible_error := client.Do(request)
 	if possible_error != nil {
@@ -182,16 +190,16 @@ func (app *Config) calculateKNN(write http.ResponseWriter, authentic KnnPayload)
 	}
 	defer response.Body.Close()
 
-	//make sure we get back the right status code
+	// Make sure we get back the right status code
 	if response.StatusCode != http.StatusAccepted {
 		app.errorJSON(write, errors.New("error calling knn service"))
 		return
 	}
 
-	//create a varible we'll read response.Body into
+	// Create a varible we'll read response.Body into
 	var jsonFromService jsonResponse
 
-	//decode the json from the auth service
+	// Decode the json from the knn service
 	possible_error = json.NewDecoder(response.Body).Decode(&jsonFromService)
 	if possible_error != nil {
 		app.errorJSON(write, possible_error)
@@ -203,6 +211,7 @@ func (app *Config) calculateKNN(write http.ResponseWriter, authentic KnnPayload)
 		return
 	}
 
+	// Sending response back to frontend
 	var payload jsonResponse
 	payload.Error = false
 	payload.Message = jsonFromService.Message

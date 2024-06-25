@@ -14,6 +14,7 @@ type requestsPayload struct {
 func (app *Config) Authenticate(write http.ResponseWriter, read *http.Request) {
 	var requests_payload requestsPayload
 
+	// Write the json to requestsPayload struct
 	possible_error := app.readJSON(write, read, &requests_payload)
 
 	if possible_error != nil {
@@ -21,7 +22,7 @@ func (app *Config) Authenticate(write http.ResponseWriter, read *http.Request) {
 		return
 	}
 
-	//validate the user against the database
+	// Validate the user against the database
 	user, possible_error := app.Models.User.GetUserByName()
 	if possible_error != nil {
 		app.errorJSON(write, errors.New("invalid credentials"), http.StatusBadRequest)
@@ -40,5 +41,6 @@ func (app *Config) Authenticate(write http.ResponseWriter, read *http.Request) {
 		Data:    user,
 	}
 
+	// Return answer to the broker
 	app.writeJSON(write, http.StatusAccepted, pay_load)
 }

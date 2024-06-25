@@ -28,9 +28,11 @@ type requestsPayload struct {
 	Thalassemia                        int     `json:"thalassemia"`
 }
 
+// This function execute KNN algorithm on given data to predict the json message result
 func (app *Config) KNN(write http.ResponseWriter, read *http.Request) {
 	var requests_payload requestsPayload
 
+	// Write the json to requestsPayload struct
 	possible_error := app.readJSON(write, read, &requests_payload)
 
 	if possible_error != nil {
@@ -38,8 +40,10 @@ func (app *Config) KNN(write http.ResponseWriter, read *http.Request) {
 		return
 	}
 
+	// Load the csv into slice [][]int object and seperate X, y by the last column
 	X, y := load_dataset("heart.csv")
 
+	// Set the payload as []int slice
 	X_to_predict := []int{
 		requests_payload.Age,
 		requests_payload.Gender,
@@ -56,9 +60,11 @@ func (app *Config) KNN(write http.ResponseWriter, read *http.Request) {
 		requests_payload.Thalassemia,
 	}
 
+	// Do scalling for X and X_to_predict
 	X_scaled := minmax_scale_fit_transform(X)
 	X_scaled_to_predict := minmax_to_predict_scale_fit_transform(X_to_predict)
 
+	// Try to predict the result
 	y_predicted := predict(X_scaled_to_predict, X_scaled, y, 3)
 
 	var result string
@@ -74,9 +80,11 @@ func (app *Config) KNN(write http.ResponseWriter, read *http.Request) {
 		Message: fmt.Sprintf("The result is: %s", result),
 	}
 
+	// Return answer to the broker
 	app.writeJSON(write, http.StatusAccepted, pay_load)
 }
 
+// This function get csv file and return it as two slices of type int
 func load_dataset(file_name string) ([][]int, []int) {
 	var X [][]int
 	var y []int
@@ -90,20 +98,21 @@ func load_dataset(file_name string) ([][]int, []int) {
 	defer csvFile.Close()
 
 	reader := csv.NewReader(csvFile)
-	_, err := reader.Read() // Skips header
-	if err != nil {
+	_, possible_error := reader.Read() // Skips header
+	if possible_error != nil {
 		return X, y
 	}
 
 	for {
-		row, err := reader.Read()
-		if err == io.EOF {
+		row, possible_error := reader.Read()
+		if possible_error == io.EOF {
 			break
 		}
-		if err != nil {
-			log.Fatal(err)
+		if possible_error != nil {
+			log.Fatal(possible_error)
 		}
 
+		//convert the string to int and ignore the error
 		inR0, _ := strconv.Atoi(row[0])
 		inR1, _ := strconv.Atoi(row[1])
 		inR2, _ := strconv.Atoi(row[2])
@@ -119,8 +128,10 @@ func load_dataset(file_name string) ([][]int, []int) {
 		inR12, _ := strconv.Atoi(row[8])
 		inR13, _ := strconv.Atoi(row[9])
 
+		//Create a vector to add to X
 		row_to_add := []int{inR0, inR1, inR2, inR3, inR4, inR5, inR6, inR7, inR8, inR9, inR10, inR11, inR12}
 
+		//Add the vector to X and the last column value to the y
 		X = append(X, row_to_add)
 		y = append(y, inR13)
 	}
@@ -128,14 +139,19 @@ func load_dataset(file_name string) ([][]int, []int) {
 	return X, y
 }
 
+// This function will do scalling to the X_to_predict in order to ensure the
+// varibles will be between 0 to 1 so the prediction will be more acurate since all the varible on the same scale
 func minmax_to_predict_scale_fit_transform(X_to_predict []int) []float32 {
 
+	// Create the return slice
 	X_scaled := make([]float32, len(X_to_predict))
 
+	// Find min and max values in the vector
 	min_value := slices.Min(X_to_predict)
 	max_value := slices.Max(X_to_predict)
 	range_value := max_value - min_value
 
+	// Set new value to each varible on the vector
 	for index, value := range X_to_predict {
 		new_value := float32(value-min_value) / float32(range_value)
 		X_scaled[index] = new_value
@@ -144,15 +160,22 @@ func minmax_to_predict_scale_fit_transform(X_to_predict []int) []float32 {
 	return X_scaled
 }
 
+// This function will do scalling to the X in order to ensure the
+// varibles will be between 0 to 1 so the prediction will be more acurate since all the varible on the same scale
 func minmax_scale_fit_transform(X [][]int) [][]float32 {
 
+	// Create the return slice
 	X_scaled := make([][]float32, len(X))
 
+	// Loop through all the vectors
 	for index, element := range X {
+
+		// Find min and max values in the vector
 		min_value := slices.Min(element)
 		max_value := slices.Max(element)
 		range_value := max_value - min_value
 
+		// Set new value to each varible on the vector
 		for _, value := range element {
 			new_value := float32(value-min_value) / float32(range_value)
 			X_scaled[index] = append(X_scaled[index], new_value)
@@ -162,10 +185,13 @@ func minmax_scale_fit_transform(X [][]int) [][]float32 {
 	return X_scaled
 }
 
+// This function calculate distance between X_to_predict vector and all X vectors
+// and return the distances
 func calc_distance(X_to_predict []float32, X [][]float32) []float32 {
 
 	distances := make([]float32, len(X))
 
+	// Loop through all the vectors and calculate the distance with euclidean distance formula
 	for i := 0; i < len(X); i++ {
 		euclidean_distance := 0.0
 
@@ -184,7 +210,9 @@ func calc_distance(X_to_predict []float32, X [][]float32) []float32 {
 	return distances
 }
 
+// This function will predict the result of X_to_predict based on the results of X
 func predict(X_to_predict []float32, X [][]float32, y []int, k int) []int {
+	// Calculate distance between X_to_predict vector and all X vectors
 	distances_array := calc_distance(X_to_predict, X)
 
 	y_predicted := make([]int, len(y))
@@ -192,6 +220,7 @@ func predict(X_to_predict []float32, X [][]float32, y []int, k int) []int {
 	group_A := 0
 	group_B := 0
 
+	// Run K times and find the K neighbors of X_to_predict vector
 	for i := 0; i < k; i++ {
 		closest_index := slices.Index(distances_array, slices.Min(distances_array))
 
@@ -204,6 +233,8 @@ func predict(X_to_predict []float32, X [][]float32, y []int, k int) []int {
 		distances_array = append(distances_array[:closest_index], distances_array[closest_index+1:]...)
 	}
 
+	// If more neighbors are from group_A X_to_predict is also belong to group_A
+	// otherwise X_to_predict belong to group_B
 	if group_A > group_B {
 		y_predicted = append(y_predicted, 1)
 	} else {

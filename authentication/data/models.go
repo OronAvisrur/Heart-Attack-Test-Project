@@ -44,6 +44,7 @@ func (user *User) GetAllTableRows() ([]*User, error) {
 	query := `select user_name, email, password, created_at, updated_at 
 	from users order by user_name`
 
+	// Using the context we wait for the response from the DB to our query
 	table_rows, possible_error := db.QueryContext(ctx, query)
 	if possible_error != nil {
 		return nil, possible_error
@@ -74,6 +75,7 @@ func (user *User) GetAllTableRows() ([]*User, error) {
 
 }
 
+// This function returns a user by the name
 func (user *User) GetUserByName() (*User, error) {
 	ctx, cancle := context.WithTimeout(context.Background(), db_time_out)
 	defer cancle()
@@ -81,6 +83,7 @@ func (user *User) GetUserByName() (*User, error) {
 	query := `select user_name, email, password, created_at, updated_at
 	from users where id = $1`
 
+	// Using the context we wait for the response from the DB to our query
 	user_row := db.QueryRowContext(ctx, query, user.UserName)
 	var user_info User
 
@@ -99,6 +102,7 @@ func (user *User) GetUserByName() (*User, error) {
 	return &user_info, nil
 }
 
+// This function insert new entry to the DB
 func (user *User) Insert() (string, error) {
 	ctx, cancle := context.WithTimeout(context.Background(), db_time_out)
 	defer cancle()
@@ -112,6 +116,7 @@ func (user *User) Insert() (string, error) {
 	query := `insert into users (email, password, created_at, updated_at)
 	values ($1, $2, $3, $4) returning user_name`
 
+	// Execute the query by adding the given user to the DB
 	possible_error = db.QueryRowContext(ctx, query,
 		user.Email,
 		hashed_password,
@@ -126,12 +131,14 @@ func (user *User) Insert() (string, error) {
 	return new_user_name, nil
 }
 
+// This function delete user from the DB
 func (user *User) Delete() error {
 	ctx, cancle := context.WithTimeout(context.Background(), db_time_out)
 	defer cancle()
 
 	query := `delete from users where user_name = $1`
 
+	// Execute the query by deleting the given user from the DB and ignore the sql result
 	_, possible_error := db.ExecContext(ctx, query, user.UserName)
 	if possible_error != nil {
 		return possible_error
@@ -140,17 +147,21 @@ func (user *User) Delete() error {
 	return nil
 }
 
+// This function reset user password
 func (user *User) RestPassword(new_password string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), db_time_out)
 	defer cancel()
 
+	// Generating new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(new_password), 12)
 	if err != nil {
 		return err
 	}
 
-	stmt := `update users set password = $1 where user_name = $2`
-	_, err = db.ExecContext(ctx, stmt, hashedPassword, user.UserName)
+	query := `update users set password = $1 where user_name = $2`
+	// Execute the query
+
+	_, err = db.ExecContext(ctx, query, hashedPassword, user.UserName)
 	if err != nil {
 		return err
 	}
@@ -158,7 +169,10 @@ func (user *User) RestPassword(new_password string) error {
 	return nil
 }
 
+// This function check if the given password is the user password
 func (user *User) IsPasswordMatches(plainText string) (bool, error) {
+
+	// Comparing user.Password and plainText
 	possible_error := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(plainText))
 	if possible_error != nil {
 		switch {

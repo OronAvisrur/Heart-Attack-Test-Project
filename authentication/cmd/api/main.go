@@ -45,7 +45,7 @@ func main() {
 		Handler: app.routes(),
 	}
 
-	//------------
+	// Start listen for requests
 	possible_error := server.ListenAndServe()
 	if possible_error != nil {
 		log.Panic(possible_error)
